@@ -33,6 +33,48 @@ class controller():
         self.mem_storage = self.block_num * [""]
         # todo: 绑定盘块、磁盘大小
 
+
+    def read_from_local_files(self):
+        with open('bitmap.txt', 'r') as f:
+            s = f.read()
+            L = s.split('\n')
+            self.bitmap = [-1] * (len(L) - 1)
+            for i in range(len(L) - 1):
+                self.bitmap[i] = int(L[i])
+            f.close()
+        with open('content.txt', 'r') as f:
+            s = f.read()
+            L = s.split('\n')
+            self.mem_storage = [""] * (len(L) - 1)
+            for i in range(len(L) - 1):
+                self.mem_storage[i] = L[i]
+            f.close()
+        with open('fcb.txt', 'r') as f:
+            s = f.read()
+            L = s.split('\n')
+            root_fcb = FCB('root', -1, 'folder', '0', '/')
+            root_fcb.item = self.root_item
+            self.root_item.fcb = root_fcb
+            fcb_list = [root_fcb]
+
+            for i in range(1, len(L) - 1):
+                sub_L = L[i].split(' ')
+                tmp_fcb = FCB(sub_L[0], int(sub_L[1]), sub_L[2], sub_L[3], sub_L[4])
+                tmp_fcb.parent = fcb_list[int(sub_L[5])]
+                if tmp_fcb.parent.firstChild:
+                    f_child, pos = self.get_last_sibling(tmp_fcb.parent.firstChild)
+                    f_child.sibling = tmp_fcb
+                else:
+                    tmp_fcb.parent.firstChild = tmp_fcb
+                tmp_item = MyStandardItem(tmp_fcb)
+                tmp_item.setEditable(False)
+                parent_item = tmp_fcb.parent.item # type: MyStandardItem
+                fcb_list.append(tmp_fcb)
+                parent_item.setChild(parent_item.rowCount(), tmp_item)
+            f.close()
+            self.set_widget_table(root_fcb.item)
+
+
     def __init__(self, mw: MyMainForm, dialog: MyDialog,
                  create_dialog: MyCreateDialog,
                  create_folder: MyCreateFolderDialog,
@@ -64,6 +106,40 @@ class controller():
         self.cur_item.fcb.item = self.root_item
         self.mw.search_text.returnPressed.connect(self.search)
         self.file_dlg.closed.connect(self.file_closed)
+        # self.mw.closed.connect(self.mw_closed)
+        # self.code = 1
+        self.read_from_local_files()
+
+    def mw_closed(self):
+        with open('bitmap.txt', 'w') as f:
+            for item in self.bitmap:
+                f.write(str(item) + '\n')
+        f.close()
+        with open('content.txt', 'w') as f:
+            for item in self.content_map:
+                f.write(str(item) + '\n')
+        f.close()
+        with open('fcb.txt', 'w') as f:
+            self.root_item.fcb.parentIdx = -1
+            fcb_list = [self.root_item.fcb]
+            i = 0
+            print(self.root_item.fcb)
+            while i < len(fcb_list):
+                tmp_child = fcb_list[i].firstChild
+                while tmp_child:
+                    fcb_list.append(tmp_child)
+                    tmp_child.parentIdx = i
+                    tmp_child = tmp_child.sibling
+                i += 1
+            for item in fcb_list:
+                f.write(item.file_name + ' ' +
+                        str(item.start_block) + ' ' +
+                        item.type + ' ' +
+                        item.size + ' ' +
+                        item.path + ' ' +
+                        str(item.parentIdx) + '\n')
+
+
 
     def file_closed(self):
         self.cur_text = self.file_dlg.plainTextEdit.toPlainText()
@@ -168,7 +244,7 @@ class controller():
         self.clicked_item = self.mw.tableWidget.itemFromIndex(index) # type: MyStandardItem
 
         if self.clicked_item.fcb.type == 'Folder':
-            self.cur_item = self.clicked_item
+            self.cur_item = self.clicked_item.fcb.item
             self.set_widget_table(self.cur_item)
             return
         else:
@@ -180,7 +256,7 @@ class controller():
                 while 1:
                     text += self.mem_storage[tmp_block]
                     tmp_block = self.bitmap[tmp_block]
-                    if tmp_block == -2:
+                    if tmp_block < 0:
                         break
                 self.file_dlg.plainTextEdit.setPlainText(text)
             # self.file_dlg.closed.connect()

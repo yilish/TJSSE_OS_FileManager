@@ -7,8 +7,11 @@
 # WARNING! All changes made in this file will be lost!
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-
+from PyQt5.QtCore import pyqtSignal
 class Ui_MainWindow(object):
+    closed = pyqtSignal()
+    def closeEvent(self, e):
+        self.closed.emit()
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(780, 480)

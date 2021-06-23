@@ -8,7 +8,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QDialog
 from PyQt5.QtGui import QIcon
-import mainwindowui
+
 from mw import Ui_MainWindow
 from popup import Ui_Dialog
 import controller
