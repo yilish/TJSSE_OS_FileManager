@@ -70,7 +70,7 @@ class controller():
         self.file_dlg.plainTextEdit.setPlainText('')
         # 分块处理
         first_free_block = -1
-        file_len = len(self.cur_text) / 2
+        file_len = len(self.cur_text)
         block_num = math.ceil(file_len / 2)
         free_num = len([i for i in self.bitmap if i == -1])
         if block_num > free_num:
@@ -83,6 +83,19 @@ class controller():
                 break
         self.clicked_item.fcb.start_block = first_free_block
         # 按顺序往里填就完事了
+        former_block = first_free_block
+        filled_blocks = 0
+        for i in range(first_free_block, len(self.bitmap)):
+            if filled_blocks == block_num:
+                self.bitmap[former_block] = -2 # 宣布封顶
+                break
+            if self.bitmap[i] == -1:
+                self.bitmap[former_block] = i
+                former_block = i
+                self.mem_storage[i] = self.cur_text[2 * filled_blocks: 2*filled_blocks + 2]
+                filled_blocks += 1
+        self.clicked_item.fcb.size = str(block_num)
+        self.set_widget_table(self.cur_item)
 
 
     def search(self):
@@ -161,6 +174,15 @@ class controller():
         else:
             self.file_dlg.show()
             self.file_dlg.setWindowTitle(self.clicked_item.fcb.file_name)
+            if self.clicked_item.fcb.start_block != -1:
+                text = ''
+                tmp_block = self.clicked_item.fcb.start_block
+                while 1:
+                    text += self.mem_storage[tmp_block]
+                    tmp_block = self.bitmap[tmp_block]
+                    if tmp_block == -2:
+                        break
+                self.file_dlg.plainTextEdit.setPlainText(text)
             # self.file_dlg.closed.connect()
         # Todo: 加入读取盘块
 
@@ -357,6 +379,12 @@ class controller():
         if self.mw.tableWidget.selectedIndexes():
             row_num = self.mw.tableWidget.selectedIndexes()[0].row()
             target_fcb = self.get_fcb_by_row(row_num)
+            cur_block = target_fcb.start_block
+            while cur_block != -2:
+                next_block = self.bitmap[cur_block]
+                self.bitmap[cur_block] = -1
+                self.mem_storage[cur_block] = ""
+                cur_block = next_block
             self.del_fcb_by_name(target_fcb.file_name)
             self.set_widget_table(self.cur_item)
             self.cur_item.removeRow(row_num)
