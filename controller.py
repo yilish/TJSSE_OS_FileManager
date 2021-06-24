@@ -58,9 +58,10 @@ class controller():
             fcb_list = [root_fcb]
 
             for i in range(1, len(L) - 1):
-                sub_L = L[i].split(' ')
+                sub_L = L[i].split('\\')
                 tmp_fcb = FCB(sub_L[0], int(sub_L[1]), sub_L[2], sub_L[3], sub_L[4])
                 tmp_fcb.parent = fcb_list[int(sub_L[5])]
+                tmp_fcb.time = sub_L[6]
                 if tmp_fcb.parent.firstChild:
                     f_child, pos = self.get_last_sibling(tmp_fcb.parent.firstChild)
                     f_child.sibling = tmp_fcb
@@ -106,24 +107,26 @@ class controller():
         self.cur_item.fcb.item = self.root_item
         self.mw.search_text.returnPressed.connect(self.search)
         self.file_dlg.closed.connect(self.file_closed)
-        # self.mw.closed.connect(self.mw_closed)
+        self.mw.closed.connect(self.mw_closed)
         # self.code = 1
         self.read_from_local_files()
-
+        self.mw.setWindowTitle('File Manager')
     def mw_closed(self):
         with open('bitmap.txt', 'w') as f:
             for item in self.bitmap:
                 f.write(str(item) + '\n')
-        f.close()
+            f.close()
         with open('content.txt', 'w') as f:
             for item in self.content_map:
-                f.write(str(item) + '\n')
-        f.close()
+                f.write(str(item) + ' ')
+            f.close()
         with open('fcb.txt', 'w') as f:
             self.root_item.fcb.parentIdx = -1
             fcb_list = [self.root_item.fcb]
+
             i = 0
             print(self.root_item.fcb)
+            self.root_item.fcb.time = time.asctime( time.localtime(time.time()) )
             while i < len(fcb_list):
                 tmp_child = fcb_list[i].firstChild
                 while tmp_child:
@@ -132,12 +135,13 @@ class controller():
                     tmp_child = tmp_child.sibling
                 i += 1
             for item in fcb_list:
-                f.write(item.file_name + ' ' +
-                        str(item.start_block) + ' ' +
-                        item.type + ' ' +
-                        item.size + ' ' +
-                        item.path + ' ' +
-                        str(item.parentIdx) + '\n')
+                f.write(item.file_name + '\\' +
+                        str(item.start_block) + '\\' +
+                        item.type + '\\' +
+                        item.size + '\\' +
+                        item.path + '\\' +
+                        str(item.parentIdx) + '\\' +
+                        item.time + '\n')
 
 
 
@@ -200,6 +204,7 @@ class controller():
         self.root_item = self.model.myInvisibleRootItem()
         try:
             self.root_item.fcb.firstChild = self.root_item.child(0).fcb
+            self.root_item.fcb.time = time.asctime( time.localtime(time.time()) )
         except:
             pass
         print(self.root_item)
@@ -265,8 +270,10 @@ class controller():
 
 
     def updatetable(self, index: QModelIndex):
-        self.cur_item = self.model.itemFromIndex(index) # type: MyStandardItem
+        target_item = self.model.itemFromIndex(index) # type: MyStandardItem
+        self.cur_item = target_item
         self.set_widget_table(self.cur_item)
+
 
 
     def set_widget_table(self, parent_item):
@@ -418,6 +425,7 @@ class controller():
                 if tmp_child.file_name == name:
                     return i
                 i += 1
+                tmp_child = tmp_child.sibling
         return -1
 
 
@@ -425,7 +433,7 @@ class controller():
         if self.cur_item.fcb.firstChild:
             tmp_child = self.cur_item.fcb.firstChild
             while tmp_child.sibling:
-                if tmp_child.sibling.fcb.file_name == name:
+                if tmp_child.sibling.file_name == name:
                     return tmp_child
         return None
 
@@ -456,7 +464,7 @@ class controller():
             row_num = self.mw.tableWidget.selectedIndexes()[0].row()
             target_fcb = self.get_fcb_by_row(row_num)
             cur_block = target_fcb.start_block
-            while cur_block != -2:
+            while cur_block >= 0:
                 next_block = self.bitmap[cur_block]
                 self.bitmap[cur_block] = -1
                 self.mem_storage[cur_block] = ""
